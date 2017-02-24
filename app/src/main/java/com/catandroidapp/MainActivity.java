@@ -1,5 +1,8 @@
 package com.catandroidapp;
 
+import android.app.Application;
+import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -38,6 +41,8 @@ import retrofit2.Response;
 public class MainActivity extends AppCompatActivity {
 
     private CatService catService;
+    private RecyclerView mRecyclerView;
+    private final CardAdapter mCardAdapter = new CardAdapter();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,110 +51,16 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        mCardAdapter.setContext(getApplicationContext());
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
-
-        RecyclerView mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+        mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view);
         mRecyclerView.setHasFixedSize(true);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        final CardAdapter mCardAdapter = new CardAdapter();
         mRecyclerView.setAdapter(mCardAdapter);
 
         catService = new CatService();
 
-        catService.getCats()
-                .subscribeOn(Schedulers.newThread())
-                .observeOn(AndroidSchedulers.mainThread())
-                .flatMap(new Function<List<Cat>, ObservableSource<Cat>>(){
-                    @Override
-                    public ObservableSource<Cat> apply(List<Cat> cats) throws Exception {
-                        return Observable.fromIterable(cats);
-                    }
-                }).subscribe(new Observer<Cat>() {
-
-                    @Override
-                    public void onSubscribe(Disposable d) {
-
-                    }
-
-                    @Override
-                    public void onNext(Cat cat) {
-                        File file = new File("/data/data/" + getPackageName() + "/cache/" + cat.getImgName());
-                        if(!file.exists())
-                            catService.getCatImgURL(cat.getImgName())
-                                    .flatMap(new Function<Response<ResponseBody>, ObservableSource<File>>() {
-                                        @Override
-                                        public ObservableSource<File> apply(final Response<ResponseBody> resp) throws Exception {
-
-                                            return Observable.create(new ObservableOnSubscribe<File>() {
-                                                @Override
-                                                public void subscribe(ObservableEmitter<File> e) throws Exception {
-
-                                                    try {
-                                                        String header = resp.headers().get("Content-Disposition");
-                                                        String filename = header.replace("attachment; filename=", "").replace("\"", "");
-
-                                                        new File("/data/data/" + getPackageName() + "/cache").mkdir();
-
-                                                        File pathImgCache = new File("/data/data/" + getPackageName() + "/cache/" + filename);
-
-                                                        BufferedSink bufferedSink = Okio.buffer(Okio.sink(pathImgCache));
-                                                        bufferedSink.writeAll(resp.body().source());
-                                                        bufferedSink.close();
-
-                                                        e.onNext(pathImgCache);
-                                                        e.onComplete();
-                                                    } catch (IOException er) {
-                                                        er.printStackTrace();
-                                                        e.onError(er);
-                                                    }
-                                                }
-                                            });
-                                        }
-                                    })
-                                    .subscribeOn(Schedulers.io())
-                                    .observeOn(AndroidSchedulers.mainThread())
-                                    .subscribe(new Observer<File>() {
-                                        @Override
-                                        public void onComplete() {
-
-                                        }
-
-                                        @Override
-                                        public void onError(Throwable e) {
-                                        }
-
-                                        @Override
-                                        public void onSubscribe(Disposable d) {
-
-                                        }
-
-                                        @Override
-                                        public void onNext(File file) {
-                                        }
-                                    });
-
-                        mCardAdapter.addCat(cat);
-
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-
-                    }
-
-                    @Override
-                    public void onComplete() {
-
-                    }
-                });
+        getCats();
     }
 
     @Override
@@ -161,17 +72,130 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+        Intent intent;
+        switch (item.getItemId()) {
+            case R.id.action_add:
+                intent = new Intent(this, AddActivity.class);
+                startActivityForResult(intent, 0);
+                return true;
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+            case R.id.action_refresh:
+                mCardAdapter.clear();
+                getCats();
+                return true;
+
+            case R.id.action_search:
+                intent = new Intent(this, SearchActivity.class);
+                startActivity(intent);
+                return true;
+
+            default:
+
+                return super.onOptionsItemSelected(item);
+
         }
 
-        return super.onOptionsItemSelected(item);
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent imageReturnedIntent) {
+        super.onActivityResult(requestCode, resultCode, imageReturnedIntent);
+        switch(requestCode) {
+
+            case 0:
+                if(resultCode == RESULT_OK){
+                    mCardAdapter.clear();
+                    getCats();
+                }
+                break;
+        }
+    }
+
+    public void getCats(){
+        catService.getCats()
+                .subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread())
+                .flatMap(new Function<List<Cat>, ObservableSource<Cat>>(){
+                    @Override
+                    public ObservableSource<Cat> apply(List<Cat> cats) throws Exception {
+                        return Observable.fromIterable(cats);
+                    }
+                }).subscribe(new Observer<Cat>() {
+
+            @Override
+            public void onSubscribe(Disposable d) {
+
+            }
+
+            @Override
+            public void onNext(Cat cat) {
+                File file = new File("/data/data/" + getPackageName() + "/cache/" + cat.getImgName());
+                if(!file.exists())
+                    catService.getCatImgURL(cat.getImgName())
+                            .flatMap(new Function<Response<ResponseBody>, ObservableSource<File>>() {
+                                @Override
+                                public ObservableSource<File> apply(final Response<ResponseBody> resp) throws Exception {
+
+                                    return Observable.create(new ObservableOnSubscribe<File>() {
+                                        @Override
+                                        public void subscribe(ObservableEmitter<File> e) throws Exception {
+
+                                            try {
+                                                String header = resp.headers().get("Content-Disposition");
+                                                String filename = header.replace("attachment; filename=", "").replace("\"", "");
+
+                                                new File("/data/data/" + getPackageName() + "/cache").mkdir();
+
+                                                File pathImgCache = new File("/data/data/" + getPackageName() + "/cache/" + filename);
+
+                                                BufferedSink bufferedSink = Okio.buffer(Okio.sink(pathImgCache));
+                                                bufferedSink.writeAll(resp.body().source());
+                                                bufferedSink.close();
+
+                                                e.onNext(pathImgCache);
+                                                e.onComplete();
+                                            } catch (IOException er) {
+                                                er.printStackTrace();
+                                                e.onError(er);
+                                            }
+                                        }
+                                    });
+                                }
+                            })
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(new Observer<File>() {
+                                @Override
+                                public void onComplete() {
+
+                                }
+
+                                @Override
+                                public void onError(Throwable e) {
+                                }
+
+                                @Override
+                                public void onSubscribe(Disposable d) {
+
+                                }
+
+                                @Override
+                                public void onNext(File file) {
+                                }
+                            });
+
+                mCardAdapter.addCat(cat);
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+
+            }
+
+            @Override
+            public void onComplete() {
+            }
+        });
     }
 
 }
