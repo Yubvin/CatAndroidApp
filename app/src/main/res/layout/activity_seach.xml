@@ -40,12 +40,19 @@
 
             </LinearLayout>
 
-            <EditText
+            <android.support.design.widget.TextInputLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:id="@+id/edtSearch"
-                />
+                android:layout_height="match_parent">
 
+                <EditText
+                    android:id="@+id/edtSearch"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginBottom="10dp"
+                    android:hint="Text for search"
+                    android:textColor="@android:color/black"
+                    android:textColorHint="@android:color/white" />
+            </android.support.design.widget.TextInputLayout>
             <Button
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

@@ -112,6 +112,11 @@ public class CardAdapter extends RecyclerView.Adapter<CardAdapter.ViewHolder> {
         viewHolder.btnEdit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
+                viewHolder.editName.setText("");
+                viewHolder.editAge.setText("");
+                viewHolder.editBreed.setText("");
+
                 viewHolder.editName.setVisibility((viewHolder.editName.getVisibility() == View.VISIBLE)
                         ? View.GONE : View.VISIBLE);
 
