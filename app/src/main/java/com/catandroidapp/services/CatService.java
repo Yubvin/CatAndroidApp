@@ -30,7 +30,7 @@ import retrofit2.http.Streaming;
 
 public class CatService {
 
-    private static final String URL = "http://192.168.1.9:8080/";
+    private static final String URL = "http://localhost:8080/";
     private Retrofit mRetrofit;
     private CatApi mService;
 
